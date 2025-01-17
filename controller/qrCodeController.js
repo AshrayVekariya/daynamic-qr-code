@@ -8,7 +8,7 @@ exports.generateQR = async (req, res) => {
             return res.status(400).send({ error: "Dynamic URL is required" });
         }
 
-        const qrCodeUrl = `http://localhost:8080/verifyQr`;
+        const qrCodeUrl = `https://daynamic-qr-code.onrender.com/verifyQr`;
 
         // Generate QR code
         const qrCode = await QRCode.toDataURL(qrCodeUrl);
