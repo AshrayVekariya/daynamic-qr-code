@@ -1,0 +1,1 @@
+# daynamic-qr-code
