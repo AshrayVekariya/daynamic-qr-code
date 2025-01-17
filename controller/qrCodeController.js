@@ -1,23 +1,8 @@
 const QRCode = require("qrcode");
 const QRCodeModel = require('./../model/qrModel');
 const path = require('path');
-const sharp = require('sharp')
-
-exports.verifyQR = async (req, res) => {
-    try {
-        const qrRecord = await QRCodeModel.find();
-
-        if (!qrRecord) {
-            return res.status(404).send({ error: "QR Code not found" });
-        }
-
-        // Redirect to the dynamic URL
-        res.redirect(qrRecord[0]?.url);
-    } catch (error) {
-        console.log(error);
-
-    }
-}
+const sharp = require('sharp');
+const { v4: uuidv4 } = require('uuid'); // Import the uuid library
 
 exports.generateQR = async (req, res) => {
     try {
@@ -27,7 +12,8 @@ exports.generateQR = async (req, res) => {
             return res.status(400).send({ error: 'Dynamic URL is required' });
         }
 
-        const qrCodeUrl = `https://daynamic-qr-code.onrender.com/verifyQr`;
+        const id = uuidv4().replace(/-/g, '').substring(0, 16);
+        const qrCodeUrl = `https://daynamic-qr-code.onrender.com/verifyQr/${id}`;
 
         // Generate QR code with high error correction level
         const qrCodeDataUrl = await QRCode.toDataURL(qrCodeUrl, {
@@ -64,7 +50,7 @@ exports.generateQR = async (req, res) => {
         const finalQrCodeUrl = `data:image/png;base64,${qrWithImage.toString('base64')}`;
 
         // Save to database
-        await QRCodeModel.create({ url: dynamicUrl, img: finalQrCodeUrl });
+        await QRCodeModel.create({ url: dynamicUrl, img: finalQrCodeUrl, id: id });
 
         res.send({ finalQrCodeUrl, verifyUrl: qrCodeUrl });
     } catch (error) {
@@ -72,3 +58,63 @@ exports.generateQR = async (req, res) => {
         res.status(500).send({ error: 'Failed to generate QR code' });
     }
 };
+
+exports.verifyQR = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const qrRecord = await QRCodeModel.findOne({ id });
+
+        if (!qrRecord) {
+            return res.status(404).send({ error: "QR Code not found" });
+        }
+
+        // Redirect to the dynamic URL
+        res.redirect(qrRecord?.url);
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+exports.updateQRURL = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { url } = req.body;
+
+        if (!url) {
+            return res.status(400).json({ error: 'New URL is required' });
+        }
+
+        const qr = await QRCodeModel.findOne({ _id: id });
+        if (!qr) {
+            return res.status(404).json({ error: 'QR Code not found.' });
+        }
+
+        qr.url = url;
+        await qr.save();
+
+        res.json({ message: 'QR Code updated successfully.' });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+exports.deleteQR = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(404).json({ error: 'QR Code not found.' });
+        }
+
+        const qr = await QRCodeModel.findByIdAndDelete({ _id: id });
+
+        if (qr) {
+            res.json({ message: 'QR Code delete successfully.' });
+        } else {
+            res.json({ message: 'Something want wrong!' });
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}
